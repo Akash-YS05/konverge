@@ -1,5 +1,7 @@
 import { postRouter } from "@/server/api/routers/post";
 import { githubRouter } from "@/server/api/routers/github";
+import { workspaceRouter } from "@/server/api/routers/workspace";
+import { roomRouter } from "@/server/api/routers/room";
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 
 /**
@@ -10,6 +12,8 @@ import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 export const appRouter = createTRPCRouter({
   post: postRouter,
   github: githubRouter,
+  workspace: workspaceRouter,
+  room: roomRouter,
 });
 
 // export type definition of API

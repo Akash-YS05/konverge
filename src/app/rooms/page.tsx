@@ -376,6 +376,22 @@ export default function RoomsPage() {
 
   const getFileContentMutation = api.github.getFileContent.useMutation();
 
+  const createRoomMutation = api.room.create.useMutation();
+
+  // Fetch rooms from DB
+  const { data: dbRooms } = api.room.getAll.useQuery({
+    workspaceId: "default",
+  });
+
+  // Merge DB rooms with display
+  const displayRooms =
+    dbRooms && dbRooms.length > 0
+      ? [
+          ...dbRooms.map((r) => ({ ...r, participants: 1, isActive: true })),
+          ...rooms,
+        ]
+      : rooms;
+
   useEffect(() => {
     const fetchContent = async () => {
       if (
@@ -553,7 +569,7 @@ export default function RoomsPage() {
             </button>
           </div>
           <div className="space-y-1">
-            {roomsList.map((room) => (
+            {displayRooms.map((room) => (
               <button
                 key={room.id}
                 onClick={() => setSelectedRoom(room)}
@@ -589,7 +605,24 @@ export default function RoomsPage() {
             Import from GitHub
           </button>
 
-          <button className="text-muted-foreground mt-2 flex w-full items-center justify-center gap-2 rounded-md border-2 border-dashed border-[#e5e5e5] px-3 py-2.5 text-sm transition-colors hover:border-[#156d95] hover:text-[#156d95] dark:border-[#3c3c3c]">
+          <button
+            onClick={async () => {
+              const name = prompt("Room name:");
+              if (name) {
+                try {
+                  await createRoomMutation.mutateAsync({
+                    name,
+                    language: "TypeScript",
+                    workspaceId: "default",
+                  });
+                  alert("Room created! Refresh to see it.");
+                } catch (e) {
+                  alert("Failed to create room: " + (e as Error).message);
+                }
+              }
+            }}
+            className="text-muted-foreground mt-2 flex w-full items-center justify-center gap-2 rounded-md border-2 border-dashed border-[#e5e5e5] px-3 py-2.5 text-sm transition-colors hover:border-[#156d95] hover:text-[#156d95] dark:border-[#3c3c3c]"
+          >
             <Plus className="h-4 w-4" />
             Create New Room
           </button>
