@@ -217,6 +217,12 @@ export function GitHubImportDialog({
       setIsLoadingTree(false);
     },
     onError: (err) => {
+      if (
+        err.message?.includes("aborted") ||
+        err.message?.includes("cancelled")
+      ) {
+        return;
+      }
       setError(err.message || "Failed to fetch contents");
       setIsLoadingTree(false);
     },
@@ -242,7 +248,7 @@ export function GitHubImportDialog({
     try {
       await authClient.signIn.social({
         provider: "github",
-        callbackURL: "/rooms?import=github",
+        callbackURL: "/rooms",
       });
     } catch (err) {
       setError("Failed to sign in with GitHub");

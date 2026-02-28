@@ -1,8 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useTheme } from "next-themes";
-import { useSearchParams } from "next/navigation";
 import {
   Plus,
   Users,
@@ -27,7 +26,10 @@ import {
   Share,
   Github,
   GitBranch,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
+import { api } from "@/trpc/react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { GitHubImportDialog } from "../_components/github-import-dialog";
@@ -363,16 +365,43 @@ export default function RoomsPage() {
   const [isAiTyping, setIsAiTyping] = useState(false);
   const [isTerminalExpanded, setIsTerminalExpanded] = useState(false);
   const [activeChatTab, setActiveChatTab] = useState<"ai" | "team">("ai");
-  const searchParams = useSearchParams();
-  const [isGitHubDialogOpen, setIsGitHubDialogOpen] = useState(
-    searchParams.get("import") === "github",
-  );
+  const [isGitHubDialogOpen, setIsGitHubDialogOpen] = useState(false);
   const [importedRepo, setImportedRepo] = useState<{
     url: string;
     path: string;
     name: string;
     repoUrl: string;
   } | null>(null);
+  const [fileContent, setFileContent] = useState<string | null>(null);
+
+  const getFileContentMutation = api.github.getFileContent.useMutation();
+
+  useEffect(() => {
+    const fetchContent = async () => {
+      if (importedRepo) {
+        try {
+          const content = await getFileContentMutation.mutateAsync({
+            repoUrl: importedRepo.repoUrl,
+            path: importedRepo.path,
+          });
+          setFileContent(content);
+        } catch (err) {
+          console.error("Failed to fetch file content:", err);
+        }
+      }
+    };
+    fetchContent();
+  }, [importedRepo]);
+
+  const displayCodeLines = useMemo(() => {
+    if (fileContent) {
+      return fileContent.split("\n").map((line, index) => ({
+        line: index + 1,
+        content: line,
+      }));
+    }
+    return codeLines;
+  }, [fileContent]);
 
   const handleRepoImport = (repoUrl: string, filePath: string) => {
     const repoName =
@@ -633,7 +662,7 @@ export default function RoomsPage() {
             <div className="flex">
               {/* Line Numbers */}
               <div className="text-muted-foreground w-12 flex-shrink-0 border-r border-[#e5e5e5] bg-[#fafafa] py-3 pr-3 text-right font-mono text-sm select-none dark:border-[#3c3c3c] dark:bg-[#1e1e1e]">
-                {codeLines.map((line) => (
+                {displayCodeLines.map((line) => (
                   <div key={line.line} className="leading-6">
                     {line.line}
                   </div>
@@ -642,7 +671,7 @@ export default function RoomsPage() {
               {/* Code */}
               <div className="flex-1 overflow-x-auto px-4 py-3">
                 <pre className="font-mono text-sm">
-                  {codeLines.map((line) => (
+                  {displayCodeLines.map((line) => (
                     <div key={line.line} className="leading-6">
                       {tokenize(line.content).map((token, i) => (
                         <span
