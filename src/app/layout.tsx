@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Figtree, Inter, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "./_components/theme-provider";
+import { TRPCReactProvider } from "@/trpc/react";
 import "./globals.css";
 
 const figtree = Figtree({
@@ -48,7 +49,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <TRPCReactProvider>{children}</TRPCReactProvider>
         </ThemeProvider>
         <Analytics />
       </body>

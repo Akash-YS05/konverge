@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  publicProcedure,
+} from "@/server/api/trpc";
 import { db } from "@/server/db";
 import {
   getUserRepositories,
@@ -92,7 +96,10 @@ export const githubRouter = createTRPCRouter({
       return getFileContent(accessToken, parsed.owner, parsed.repo, input.path);
     }),
 
-  isConnected: protectedProcedure.query(async ({ ctx }): Promise<boolean> => {
+  isConnected: publicProcedure.query(async ({ ctx }): Promise<boolean> => {
+    if (!ctx.session?.user) {
+      return false;
+    }
     const accessToken = await getGitHubAccessToken(ctx.session.user.id);
     return !!accessToken;
   }),

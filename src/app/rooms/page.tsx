@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
+import { useSearchParams } from "next/navigation";
 import {
   Plus,
   Users,
@@ -356,24 +357,42 @@ export default function RoomsPage() {
 
   const [selectedWorkspace, setSelectedWorkspace] = useState(workspaces[0]);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(rooms[0]);
+  const [roomsList, setRoomsList] = useState<Room[]>(rooms);
   const [aiInput, setAiInput] = useState("");
   const [teamChatInput, setTeamChatInput] = useState("");
   const [isAiTyping, setIsAiTyping] = useState(false);
   const [isTerminalExpanded, setIsTerminalExpanded] = useState(false);
   const [activeChatTab, setActiveChatTab] = useState<"ai" | "team">("ai");
-  const [isGitHubDialogOpen, setIsGitHubDialogOpen] = useState(false);
+  const searchParams = useSearchParams();
+  const [isGitHubDialogOpen, setIsGitHubDialogOpen] = useState(
+    searchParams.get("import") === "github",
+  );
   const [importedRepo, setImportedRepo] = useState<{
     url: string;
     path: string;
     name: string;
+    repoUrl: string;
   } | null>(null);
 
   const handleRepoImport = (repoUrl: string, filePath: string) => {
+    const repoName =
+      filePath.split("/").pop() || filePath.split("/")[0] || "imported";
+    const newRoom: Room = {
+      id: `imported-${Date.now()}`,
+      name: repoName,
+      language: "TypeScript",
+      participants: 1,
+      isActive: true,
+    };
     setImportedRepo({
       url: repoUrl,
       path: filePath,
-      name: filePath.split("/").pop() || "imported-file",
+      name: repoName,
+      repoUrl: repoUrl,
     });
+    setRoomsList((prev) => [newRoom, ...prev]);
+    setSelectedRoom(newRoom);
+    setIsGitHubDialogOpen(false);
   };
 
   return (
@@ -490,7 +509,7 @@ export default function RoomsPage() {
             </button>
           </div>
           <div className="space-y-1">
-            {rooms.map((room) => (
+            {roomsList.map((room) => (
               <button
                 key={room.id}
                 onClick={() => setSelectedRoom(room)}

@@ -30,6 +30,7 @@ export default function SignUpPage() {
     try {
       await authClient.signIn.social({
         provider: "github",
+        callbackURL: "/rooms?import=github",
       });
     } catch {
       setError("Failed to sign in with GitHub");

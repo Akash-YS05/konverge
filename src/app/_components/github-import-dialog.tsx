@@ -12,6 +12,7 @@ import { Button } from "@/app/_components/ui/button";
 import { Input } from "@/app/_components/ui/input";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/server/better-auth/client";
+import { api } from "@/trpc/react";
 import {
   GitBranch,
   Folder,
@@ -164,17 +165,6 @@ export function GitHubImportDialog({
   onOpenChange,
   onRepoSelect,
 }: GitHubImportDialogProps) {
-  const [repos, setRepos] = useState<
-    {
-      id: number;
-      name: string;
-      fullName: string;
-      description: string | null;
-      private: boolean;
-      htmlUrl: string;
-      language: string | null;
-    }[]
-  >([]);
   const [selectedRepo, setSelectedRepo] = useState<{
     fullName: string;
     htmlUrl: string;
@@ -184,7 +174,6 @@ export function GitHubImportDialog({
     new Set([""]),
   );
   const [selectedPath, setSelectedPath] = useState<string | undefined>();
-  const [isLoadingRepos, setIsLoadingRepos] = useState(false);
   const [isLoadingTree, setIsLoadingTree] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -194,82 +183,23 @@ export function GitHubImportDialog({
   );
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
 
-  useEffect(() => {
-    if (open) {
-      setIsCheckingConnection(true);
-      setError(null);
-      checkGitHubConnection();
-    }
-  }, [open]);
+  const { data: isConnectedData } = api.github.isConnected.useQuery(undefined, {
+    enabled: open,
+  });
 
-  const checkGitHubConnection = async () => {
-    try {
-      const result = await fetch("/api/trpc/github.isConnected", {
-        headers: { "Content-Type": "application/json" },
-      });
-      const json = await result.json();
-      const connected = json.result?.data?.json ?? false;
-      setIsGitHubConnected(connected);
-      if (connected) {
-        setStep("repos");
-        fetchRepos();
-      } else {
-        setStep("connect");
-      }
-    } catch {
-      setIsGitHubConnected(false);
-      setStep("connect");
-    } finally {
-      setIsCheckingConnection(false);
-    }
-  };
+  const {
+    data: reposData,
+    isLoading: isLoadingRepos,
+    refetch: refetchRepos,
+  } = api.github.getRepositories.useQuery(undefined, {
+    enabled: open === true && isConnectedData === true,
+  });
 
-  const handleSignInWithGitHub = async () => {
-    try {
-      await authClient.signIn.social({
-        provider: "github",
-      });
-    } catch (err) {
-      setError("Failed to sign in with GitHub");
-    }
-  };
+  const repos = reposData ?? [];
+  const [currentPath, setCurrentPath] = useState("");
 
-  const fetchRepos = async () => {
-    setIsLoadingRepos(true);
-    setError(null);
-    try {
-      const result = await fetch("/api/trpc/github.getRepositories", {
-        headers: { "Content-Type": "application/json" },
-      });
-      const json = await result.json();
-      if (json.error) {
-        setError(json.error.message || "Failed to fetch repositories");
-        return;
-      }
-      const repos = json.result?.data?.json ?? [];
-      setRepos(repos);
-    } catch (err) {
-      setError("Failed to fetch repositories");
-    } finally {
-      setIsLoadingRepos(false);
-    }
-  };
-
-  const fetchFileTree = async (repoUrl: string, path: string = "") => {
-    setIsLoadingTree(true);
-    try {
-      const result = await fetch("/api/trpc/github.getRepoContents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repoUrl, path }),
-      });
-      const json = await result.json();
-      if (json.error) {
-        setError(json.error.message || "Failed to fetch contents");
-        return;
-      }
-      const contents = json.result?.data?.json ?? [];
-
+  const getRepoContentsMutation = api.github.getRepoContents.useMutation({
+    onSuccess: (contents) => {
       const items: FileTreeItem[] = contents.map(
         (item: { path: string; name: string; type: string }) => ({
           path: item.path,
@@ -279,16 +209,51 @@ export function GitHubImportDialog({
         }),
       );
 
-      if (path === "") {
+      if (currentPath === "") {
         setFileTree(items);
       } else {
-        setFileTree((prev) => updateTreeWithContents(prev, path, items));
+        setFileTree((prev) => updateTreeWithContents(prev, currentPath, items));
       }
-    } catch (err) {
-      setError("Failed to fetch contents");
-    } finally {
       setIsLoadingTree(false);
+    },
+    onError: (err) => {
+      setError(err.message || "Failed to fetch contents");
+      setIsLoadingTree(false);
+    },
+  });
+
+  const [repoUrl, setRepoUrl] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setError(null);
     }
+  }, [open]);
+
+  useEffect(() => {
+    if (isConnectedData === true) {
+      setStep("repos");
+    } else if (isConnectedData === false) {
+      setStep("connect");
+    }
+  }, [isConnectedData]);
+
+  const handleSignInWithGitHub = async () => {
+    try {
+      await authClient.signIn.social({
+        provider: "github",
+        callbackURL: "/rooms?import=github",
+      });
+    } catch (err) {
+      setError("Failed to sign in with GitHub");
+    }
+  };
+
+  const fetchFileTree = (repoUrl: string, path: string = "") => {
+    setCurrentPath(path);
+    setIsLoadingTree(true);
+    setError(null);
+    getRepoContentsMutation.mutate({ repoUrl, path });
   };
 
   const updateTreeWithContents = (
@@ -443,7 +408,7 @@ export function GitHubImportDialog({
                     No repositories found. Make sure you have connected your
                     GitHub account.
                   </p>
-                  <Button onClick={fetchRepos} variant="outline">
+                  <Button onClick={() => refetchRepos()} variant="outline">
                     <RefreshCw className="mr-2 h-4 w-4" />
                     Retry
                   </Button>
@@ -477,14 +442,14 @@ export function GitHubImportDialog({
             </div>
 
             <div className="flex justify-between border-t pt-4">
-              <Button variant="outline" onClick={fetchRepos}>
+              <Button variant="outline" onClick={() => refetchRepos()}>
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Refresh
               </Button>
               <Button
                 onClick={() => {
                   if (repos.length === 0) {
-                    fetchRepos();
+                    refetchRepos();
                   }
                 }}
                 disabled={repos.length === 0 && !isLoadingRepos}
