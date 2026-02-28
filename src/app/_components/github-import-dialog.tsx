@@ -36,7 +36,7 @@ interface FileTreeItem {
 
 interface FileTreeProps {
   items: FileTreeItem[];
-  onFileSelect?: (path: string, name: string) => void;
+  onFileSelect?: (path: string, name: string, type: string) => void;
   selectedPath?: string;
   onFolderExpand?: (path: string) => void;
   expandedFolders: Set<string>;
@@ -53,7 +53,7 @@ function FileTreeItemComponent({
   depth = 0,
 }: {
   item: FileTreeItem;
-  onFileSelect?: (path: string, name: string) => void;
+  onFileSelect?: (path: string, name: string, type: string) => void;
   selectedPath?: string;
   onFolderExpand?: (path: string) => void;
   expandedFolders: Set<string>;
@@ -71,7 +71,7 @@ function FileTreeItemComponent({
           if (isFolder) {
             onFolderExpand?.(item.path);
           } else {
-            onFileSelect?.(item.path, item.name);
+            onFileSelect?.(item.path, item.name, item.type);
           }
         }}
         className={cn(
@@ -296,12 +296,16 @@ export function GitHubImportDialog({
     });
   };
 
-  const handleFileSelect = (path: string, name: string) => {
+  const handleFileSelect = (path: string, name: string, type: string) => {
+    if (type === "folder") {
+      return;
+    }
     setSelectedPath(path);
   };
 
   const handleImport = () => {
     if (selectedRepo && selectedPath) {
+      console.log("Importing:", selectedRepo.htmlUrl, selectedPath);
       onRepoSelect(selectedRepo.htmlUrl, selectedPath);
       onOpenChange(false);
       resetState();

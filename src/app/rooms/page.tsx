@@ -378,15 +378,30 @@ export default function RoomsPage() {
 
   useEffect(() => {
     const fetchContent = async () => {
-      if (importedRepo) {
+      if (
+        importedRepo &&
+        importedRepo.path &&
+        importedRepo.path.trim() !== ""
+      ) {
+        console.log("Fetching content for:", importedRepo.path);
         try {
           const content = await getFileContentMutation.mutateAsync({
             repoUrl: importedRepo.repoUrl,
             path: importedRepo.path,
           });
-          setFileContent(content);
-        } catch (err) {
-          console.error("Failed to fetch file content:", err);
+          console.log("Content length:", content?.length);
+          if (content) {
+            setFileContent(content);
+          } else {
+            alert(
+              "Selected item is a folder, not a file. Please select a file to view its content.",
+            );
+          }
+        } catch (err: unknown) {
+          const errorMessage =
+            err instanceof Error ? err.message : "Unknown error";
+          console.error("Failed to fetch file content:", errorMessage);
+          alert("Failed to fetch file content: " + errorMessage);
         }
       }
     };
