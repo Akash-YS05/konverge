@@ -48,7 +48,7 @@ export const githubRouter = createTRPCRouter({
         path: z.string().optional().default(""),
       }),
     )
-    .query(async ({ ctx, input }): Promise<GitHubFileTree[]> => {
+    .mutation(async ({ ctx, input }): Promise<GitHubFileTree[]> => {
       const accessToken = await getGitHubAccessToken(ctx.session.user.id);
 
       if (!accessToken) {
@@ -77,7 +77,7 @@ export const githubRouter = createTRPCRouter({
         path: z.string(),
       }),
     )
-    .query(async ({ ctx, input }): Promise<string | null> => {
+    .mutation(async ({ ctx, input }): Promise<string | null> => {
       const accessToken = await getGitHubAccessToken(ctx.session.user.id);
 
       if (!accessToken) {

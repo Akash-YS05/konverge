@@ -258,11 +258,11 @@ export function GitHubImportDialog({
   const fetchFileTree = async (repoUrl: string, path: string = "") => {
     setIsLoadingTree(true);
     try {
-      const encodedPath = encodeURIComponent(path);
-      const result = await fetch(
-        `/api/trpc/github.getRepoContents?input=${encodeURIComponent(JSON.stringify({ repoUrl, path }))}`,
-        { headers: { "Content-Type": "application/json" } },
-      );
+      const result = await fetch("/api/trpc/github.getRepoContents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repoUrl, path }),
+      });
       const json = await result.json();
       if (json.error) {
         setError(json.error.message || "Failed to fetch contents");
